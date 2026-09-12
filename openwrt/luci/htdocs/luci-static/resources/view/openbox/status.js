@@ -301,7 +301,7 @@ function act(name, actions) {
 // 版本
 // ---------------------------------------------------------------------------
 var META_PATH = '/opt/open-box/meta.json';
-var REPO = 'liandu2024/Open-Box';
+var REPO = 'Helenvin/Open-Box';
 
 function readInstalledVersion() {
 	return fs.read(META_PATH).then(function (txt) {

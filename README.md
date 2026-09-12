@@ -63,13 +63,13 @@ OpenWrt 上的一体化透明代理:一条命令装完 sing-box 内核和管理�
 SSH 以 root 登录路由器,二选一:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/liandu2024/Open-Box/main/scripts/install.sh | sh
+curl -fsSL https://raw.githubusercontent.com/Helenvin/Open-Box/main/scripts/install.sh | sh
 ```
 
 GitHub 访问不畅时用加速版(脚本内置了几个加速站,会依次探测自动挑一个能用的):
 
 ```bash
-curl -fsSL https://ghfast.top/https://raw.githubusercontent.com/liandu2024/Open-Box/main/scripts/install.sh | sh -s -- --mirror
+curl -fsSL https://ghfast.top/https://raw.githubusercontent.com/Helenvin/Open-Box/main/scripts/install.sh | sh -s -- --mirror
 ```
 
 已经有信得过的加速站,也可以指定具体前缀跳过探测:`sh -s -- --mirror <镜像前缀>`。
@@ -89,7 +89,7 @@ curl -fsSL https://ghfast.top/https://raw.githubusercontent.com/liandu2024/Open-
 面板「设置 → 后端设置」里点「检查更新」就能升,也可以在 SSH 里跑:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/liandu2024/Open-Box/main/scripts/update.sh | sh
+curl -fsSL https://raw.githubusercontent.com/Helenvin/Open-Box/main/scripts/update.sh | sh
 ```
 
 强制直连 GitHub 加 `-s -- --direct`,强制走加速加 `-s -- --mirror [前缀]`。不带参数时沿用安装时选的下载通道。
@@ -100,10 +100,10 @@ curl -fsSL https://raw.githubusercontent.com/liandu2024/Open-Box/main/scripts/up
 
 ```bash
 # 停服务、清理系统改动、删程序文件;默认保留 data/
-curl -fsSL https://raw.githubusercontent.com/liandu2024/Open-Box/main/scripts/uninstall.sh | sh
+curl -fsSL https://raw.githubusercontent.com/Helenvin/Open-Box/main/scripts/uninstall.sh | sh
 
 # 连 data/ 一起删,彻底清干净
-curl -fsSL https://raw.githubusercontent.com/liandu2024/Open-Box/main/scripts/uninstall.sh | sh -s -- --purge
+curl -fsSL https://raw.githubusercontent.com/Helenvin/Open-Box/main/scripts/uninstall.sh | sh -s -- --purge
 ```
 
 不加 `--purge` 且在真实终端里交互执行时,脚本会追问一次是否保留 `data/`;通过管道非交互执行问不到,按"保留"处理。

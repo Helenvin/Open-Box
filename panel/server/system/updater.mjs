@@ -5,7 +5,7 @@
 // 读进度。这样 LuCI 兜底页和面板用的是同一条升级路径,不会各有一套坑。
 import { downloadRuleset, RULESET_MIRRORS, SOURCE_MARKER, RULESET_SOURCE } from './rulesets.mjs'
 
-export const REPO = 'liandu2024/Open-Box'
+export const REPO = 'Helenvin/Open-Box'
 
 // Geo 规则集分两类(geosite / geoip),现在都来自 MetaCubeX 同一个仓库(见 system/rulesets.mjs),
 // 版本号是那个仓库 sing 分支最近一次提交,两类记同一个值。

@@ -48,7 +48,7 @@
 
 set -eu
 
-REPO="liandu2024/Open-Box"
+REPO="Helenvin/Open-Box"
 INSTALL_ROOT="/opt/open-box"
 # 升级要在安装目录所在分区暂存一份新的(两阶段换文件,新旧并存才能原子切换),装好的一份
 # 约 213MB,所以升级本身只需要约 213MB 空闲——不是安装那个 512MB(那是"装完还要留得下

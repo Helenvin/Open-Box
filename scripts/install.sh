@@ -21,7 +21,7 @@
 
 set -eu
 
-REPO="liandu2024/Open-Box"
+REPO="Helenvin/Open-Box"
 INSTALL_ROOT="/opt/open-box"
 MIN_FREE_KB=$((512 * 1024))
 # 450000KB(≈440MB)而不是标称的 512*1024:512MB 设备的 /proc/meminfo MemTotal 实测
