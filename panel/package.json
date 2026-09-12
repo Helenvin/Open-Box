@@ -1,6 +1,6 @@
 {
   "name": "open-box-panel",
-  "version": "2.05",
+  "version": "2.06",
   "description": "Open-Box panel - integrated sing-box management for OpenWrt",
   "license": "MIT",
   "type": "module",
