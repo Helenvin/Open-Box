@@ -1,0 +1,163 @@
+name: Kernel compatibility probe
+
+# 诊断用,不属于发布链,可重复执行。
+#
+# 干什么:把上游 liandu2024/Open-Box 的**预编译内核**塞进本仓库的面板,跑故障转移
+# 集成测试(panel/server/system/http-latency.integration.test.mjs),实测"上游新内核
+# 到底卡在哪一条断言"。
+#
+# 为什么要借 CI:内核是 Linux ELF,开发机(Windows)跑不了。
+#
+# 对照组设计:同一个 job、同一份面板代码、同一台 runner,只换 bin/sing-box ——
+#   control  = 本仓库 release(默认 v2.06)里的自建 tcp2 内核
+#   upstream = 上游 tag 的预编译内核(默认 v0.1.200,即 1.14.0-openbox-tcp5)
+# 两者结果之差只可能来自内核,这是这个探针的全部价值。
+#
+# 结论落在 job summary 和 probe-*.log 附件里。
+
+on:
+  workflow_dispatch:
+    inputs:
+      upstream_tag:
+        description: '上游 liandu2024/Open-Box 的 tag'
+        required: true
+        default: 'v0.1.200'
+      arch:
+        description: '架构(x64 的 kernel 是 linux/amd64,runner 能直接跑)'
+        required: true
+        default: 'x64'
+        type: choice
+        options: ['x64']
+      control_tag:
+        description: '对照组:本仓库的 release tag(必须含自建 tcp2 内核)'
+        required: true
+        default: 'v2.06'
+
+permissions:
+  contents: read
+
+env:
+  UPSTREAM_REPO: liandu2024/Open-Box
+  # 上游资产名与我们的命名规则不同,这里现拼,避免以后有人照着抄错
+  UPSTREAM_ASSET_PREFIX: open-box
+
+jobs:
+  probe:
+    name: Probe ${{ inputs.upstream_tag }} vs ${{ inputs.control_tag }} (${{ inputs.arch }})
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Guard kernel pin (read why this repo does not buy upstream kernels)
+        run: sh scripts/check-kernel-pin.sh
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+
+      - name: Install panel dependencies
+        working-directory: panel
+        run: |
+          corepack enable
+          corepack pnpm install --frozen-lockfile
+
+      - name: Fetch control kernel (${{ inputs.control_tag }}, this repo)
+        run: |
+          set -eu
+          url="https://github.com/${GITHUB_REPOSITORY}/releases/download/${{ inputs.control_tag }}/open-box-linux-${{ inputs.arch }}.tar.gz"
+          echo "GET $url"
+          curl -fsSL --retry 5 --retry-delay 3 -o /tmp/control.tar.gz "$url"
+          mkdir -p /tmp/control
+          tar -xzf /tmp/control.tar.gz -C /tmp/control
+          src=$(find /tmp/control -type f -name sing-box -print -quit)
+          test -n "$src"
+          mkdir -p kernels/control-bin
+          install -m 0755 "$src" kernels/control-bin/sing-box
+
+      - name: Fetch upstream kernel (${{ inputs.upstream_tag }})
+        run: |
+          set -eu
+          url="https://github.com/${UPSTREAM_REPO}/releases/download/${{ inputs.upstream_tag }}/${UPSTREAM_ASSET_PREFIX}-${{ inputs.upstream_tag }}-linux-${{ inputs.arch }}-kernel.tar.gz"
+          echo "GET $url"
+          curl -fsSL --retry 5 --retry-delay 3 -o /tmp/upstream.tar.gz "$url"
+          mkdir -p /tmp/upstream
+          tar -xzf /tmp/upstream.tar.gz -C /tmp/upstream
+          src=$(find /tmp/upstream -type f -name sing-box -print -quit)
+          test -n "$src"
+          mkdir -p kernels/upstream-bin
+          install -m 0755 "$src" kernels/upstream-bin/sing-box
+
+      - name: Report kernel identities
+        run: |
+          set -eu
+          {
+            echo "| kernel | source | version | sha256 |"
+            echo "| --- | --- | --- | --- |"
+            for which in control upstream; do
+              bin="kernels/$which-bin/sing-box"
+              sha=$(sha256sum "$bin" | cut -d' ' -f1)
+              version=$("$bin" version 2>&1 | head -1)
+              if [ "$which" = control ]; then src="${{ inputs.control_tag }} (本仓库自建)"; else src="${{ inputs.upstream_tag }} (上游预编译)"; fi
+              echo "| $which | $src | \`$version\` | \`$sha\` |"
+            done
+          } | tee kernel-identities.md
+
+      - name: Run failover integration test against each kernel
+        working-directory: panel
+        run: |
+          set -u
+          mkdir -p .tools
+          rc_control=0
+          rc_upstream=0
+          for which in control upstream; do
+            install -m 0755 "../kernels/$which-bin/sing-box" .tools/sing-box
+            log="../probe-$which.log"
+            echo "::group::probe-$which"
+            echo "kernel: $(.tools/sing-box version 2>&1 | head -1)"
+            OPENBOX_TEST_SINGBOX="$PWD/.tools/sing-box" node --test server/system/http-latency.integration.test.mjs > "$log" 2>&1
+            rc=$?
+            echo "exit=$rc"
+            cat "$log"
+            echo "::endgroup::"
+            if [ "$which" = control ]; then rc_control=$rc; else rc_upstream=$rc; fi
+          done
+
+          {
+            echo "## 内核兼容性探针"
+            echo ""
+            echo "面板代码: \`${GITHUB_SHA}\` | 运行器: \`ubuntu-latest\`"
+            echo ""
+            cat ../kernel-identities.md
+            echo ""
+            echo "| kernel | 故障转移集成测试 |"
+            echo "| --- | --- |"
+            echo "| control (本仓库自建) | exit=$rc_control |"
+            echo "| upstream (上游预编译) | exit=$rc_upstream |"
+            echo ""
+            for which in control upstream; do
+              echo "### $which"
+              echo '```'
+              grep -E '(^|[[:space:]])(✔|✖|ℹ)' "../probe-$which.log" | tail -40 || true
+              echo '```'
+              echo ""
+            done
+            if [ "$rc_upstream" -eq 0 ] && [ "$rc_control" -eq 0 ]; then
+              echo "**结论:上游内核下故障转移全绿** —— 可以重新评估是否解除 tcp2 钉版。"
+            elif [ "$rc_control" -ne 0 ]; then
+              echo "**结论:对照组就失败了** —— 探针本身有问题(面板代码与内核不匹配),先修探针再谈结论。"
+            else
+              echo "**结论:上游内核下故障转移失败** —— 维持内核自建、钉 tcp2。"
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload probe logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: kernel-probe-${{ inputs.upstream_tag }}-${{ inputs.arch }}
+          path: |
+            probe-control.log
+            probe-upstream.log
+            kernel-identities.md
+          if-no-files-found: warn
+          retention-days: 14
