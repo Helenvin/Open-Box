@@ -15,10 +15,12 @@ permissions:
   contents: read
 
 jobs:
-  kernel-pin:
-    name: Kernel pin guard
+  guards:
+    name: Guards
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Check kernel pin
+      - name: Check kernel pin (内核必须自建、钉 tcp2)
         run: sh scripts/check-kernel-pin.sh
+      - name: Check owned features (一键生成故障转移组必须还在)
+        run: sh scripts/check-failover-feature.sh

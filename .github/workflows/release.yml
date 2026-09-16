@@ -25,12 +25,14 @@ jobs:
   # 组件采购表"这类改动 —— 那会让面板的「故障转移」直接失效。原因与实测证据见
   # scripts/check-kernel-pin.sh 头部注释。
   guard:
-    name: Guard (kernel pin)
+    name: Guard (kernel pin + owned features)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - name: Check kernel pin
         run: sh scripts/check-kernel-pin.sh
+      - name: Check owned features (failover)
+        run: sh scripts/check-failover-feature.sh
 
   kernel:
     name: Build kernel (${{ matrix.arch }})
