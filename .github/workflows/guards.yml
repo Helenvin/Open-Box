@@ -1,0 +1,24 @@
+name: Guards
+
+# 轻量守卫:不构建、不发布,只断言仓库的核心工程约束没被踩掉 —— 几秒钟就能跑完。
+# 目前只有一条:内核口径(必须自建、钉 tcp2),原因见 scripts/check-kernel-pin.sh。
+# 单独成一个工作流(而不是塞进 release.yml)是为了能在每次 push / PR 就拦下来,
+# 而不是拖到发版那一刻才发现。
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  kernel-pin:
+    name: Kernel pin guard
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check kernel pin
+        run: sh scripts/check-kernel-pin.sh

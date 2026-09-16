@@ -21,8 +21,20 @@ env:
   OPENBOX_REPO: Helenvin/Open-Box
 
 jobs:
+  # 发版前的第一道闸:内核口径。几秒钟,但能拦住"内核被换成上游 tcp5"或"内核被写进
+  # 组件采购表"这类改动 —— 那会让面板的「故障转移」直接失效。原因与实测证据见
+  # scripts/check-kernel-pin.sh 头部注释。
+  guard:
+    name: Guard (kernel pin)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check kernel pin
+        run: sh scripts/check-kernel-pin.sh
+
   kernel:
     name: Build kernel (${{ matrix.arch }})
+    needs: guard
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
